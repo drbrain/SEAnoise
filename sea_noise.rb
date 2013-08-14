@@ -1,9 +1,24 @@
 require 'date'
 require 'net/http/persistent'
 
+##
+# This downloads noise monitor data from the SEA airport WebTrak.  I can't
+# find a better place to download this data.
+#
+# Usage:
+#
+#   SEANoise.new(Date.today - 1).write_noise
+#
+# This will download the noise data for yesterday to a date-stamped CSV file
+# in the local directory.  It will overwrite an existing file.
+
 class SEANoise
 
   class Error < RuntimeError; end
+
+  ##
+  # Creates an instance that will download data for the given +date+.  Provide
+  # an instance of the Date class.
 
   def initialize date
     @date = date
@@ -13,6 +28,11 @@ class SEANoise
 
     @root_uri = URI 'http://ems02.bksv.com/WebTrak/sea2/data/'
   end
+
+  ##
+  # Retrieves the starting sequence for the data stream.  Due to bugs in the
+  # API this may return a handle that has data that is completely before the
+  # starting date.  Be sure to filter out early data.
 
   def start_handle
     date = @date.strftime '%Y-%m-%d%%2000:00:00'
@@ -26,16 +46,24 @@ class SEANoise
     /startHandle="(?<start_handle>[^"]*)"/x =~ res.body
     /endHandle  ="(?<end_handle>  [^"]*)"/x =~ res.body
 
-    # this API response is broken and may not include all of the data for the
-    # start time in the start handle
     start_handle.to_i - 1
   end
+
+  ##
+  # Extracts lines that start with "noise" from +entries+ as these indicate a
+  # noise event.
 
   def extract_noise entries
     entries.select do |entry|
       entry.start_with? 'noise'
     end
   end
+
+  ##
+  # Retrieves data for +handle+ from the API.
+  #
+  # Returns an Array of comma-separated data which will include noise and
+  # radar events.
 
   def load_handle handle
     handle_uri = @root_uri + handle.to_s
@@ -52,6 +80,11 @@ class SEANoise
 
     body
   end
+
+  ##
+  # Loads all handles for the day
+  #
+  # Yields chunks of events as an Array of comma-separated values.
 
   def load_handles
     handle = start_handle
@@ -73,6 +106,9 @@ class SEANoise
     end
   end
 
+  ##
+  # Yields each noise entry for the day
+
   def noise
     load_handles do |entries|
       noise = extract_noise entries
@@ -84,6 +120,11 @@ class SEANoise
       end
     end
   end
+
+  ##
+  # Writes the noise entries for the day as CSV to a date-stamped file:
+  #
+  #   %Y-%m-%d-noise.csv
 
   def write_noise
     file = @date.strftime '%Y-%m-%d-noise.csv'
