@@ -22,9 +22,9 @@ WHERE station_id = 9
 ORDER BY recorded_at")
 
 png(filename="station_9.png",
-    height=800, width=1000, bg="white")
+    height=1000, width=2000, bg="white")
 
-boxplot(select_dates[,2] ~ select_dates[,1], select_dates, horizontal=TRUE, xlab="dB", main="Station 9")
+boxplot(select_dates[,2] ~ select_dates[,1], select_dates, notch=TRUE, horizontal=TRUE, xlab="dB", main="Station 9")
 
 dev.off()
 
